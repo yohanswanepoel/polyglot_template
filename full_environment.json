@@ -10,12 +10,12 @@
       "iconClass": "icon-load-balancer",
       "openshift.io/long-description": "An example application running multiple APIs, a UI and testing framework. It deploys using a Database per service. Services are based on Java and Python to demonstrate Polyglot development.",
       "openshift.io/provider-display-name": "Johan Swanepoel",
-      "openshift.io/documentation-url": "https://github.com/sclorg/django-ex",
+      "openshift.io/documentation-url": "https://github.com/yohanswanepoel/polyglot_template",
       "openshift.io/support-url": "www.provided-as.is",
       "template.openshift.io/bindable": "false"
     }
   },
-  "message": "The following service(s) have been created in your project: ${NAME}, ${RP_DATABASE_SERVICE_NAME}, ${PROVIDER_DATABASE_SERVICE_NAME}.\n\nFor more information about using this template, including OpenShift considerations, see https://github.com/sclorg/django-ex/blob/master/README.md.",
+  "message": "The following service(s) have been created in your project: ${NAME}, ${RP_DATABASE_SERVICE_NAME}, ${PROVIDER_DATABASE_SERVICE_NAME}.\n\nFor more information about using this template, including OpenShift considerations, see https://github.com/yohanswanepoel/polyglot_template",
   "labels": {
       "template": "polyglot-example",
       "app": "polyglot-example"
@@ -31,6 +31,17 @@
         "database-user" : "${RP_DATABASE_USER}",
         "database-password" : "${RP_DATABASE_PASSWORD}",
         "django-secret-key" : "${DJANGO_SECRET_KEY}"
+      }
+    },
+    {
+      "kind": "Secret",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${NAME}-provider"
+      },
+      "stringData" : {
+        "database-user" : "${PROVIDER_DATABASE_USER}",
+        "database-password" : "${PROVIDER_DATABASE_PASSWORD}"
       }
     },
     {
@@ -57,6 +68,29 @@
       }
     },
     {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${NAME}-provider",
+        "annotations": {
+          "description": "Exposes and load balances the application pods",
+          "service.alpha.openshift.io/dependencies": "[{\"name\": \"${PROVIDER_DATABASE_SERVICE_NAME}\", \"kind\": \"Service\"}]"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "web",
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "name": "${NAME}-provider"
+        }
+      }
+    },
+    {
       "kind": "Route",
       "apiVersion": "v1",
       "metadata": {
@@ -71,10 +105,34 @@
       }
     },
     {
+      "kind": "Route",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${NAME}-provider"
+      },
+      "spec": {
+        "host": "${APPLICATION_DOMAIN_PROVIDER}",
+        "to": {
+          "kind": "Service",
+          "name": "${NAME}-provider"
+        }
+      }
+    },
+    {
       "kind": "ImageStream",
       "apiVersion": "v1",
       "metadata": {
         "name": "${NAME}-rp",
+        "annotations": {
+          "description": "Keeps track of changes in the application image"
+        }
+      }
+    },
+    {
+      "kind": "ImageStream",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${NAME}-provider",
         "annotations": {
           "description": "Keeps track of changes in the application image"
         }
@@ -94,7 +152,7 @@
         "source": {
           "type": "Git",
           "git": {
-            "uri": "${PYTON_SOURCE_REPOSITORY_URL}",
+            "uri": "${PYTHON_SOURCE_REPOSITORY_URL}",
             "ref": "${SOURCE_REPOSITORY_REF}"
           },
           "contextDir": "${CONTEXT_DIR}"
@@ -138,6 +196,57 @@
         "postCommit": {
            "script": "./manage.py test"
         }
+      }
+    },
+    {
+      "kind": "BuildConfig",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${NAME}-provider",
+        "annotations": {
+          "description": "Defines how to build the application",
+          "template.alpha.openshift.io/wait-for-ready": "true"
+        }
+      },
+      "spec": {
+        "source": {
+          "type": "Git",
+          "git": {
+            "uri": "${SPRINGBOOT_SOURCE_REPOSITORY_URL}",
+            "ref": "${SOURCE_REPOSITORY_REF}"
+          },
+          "contextDir": "${CONTEXT_DIR}"
+        },
+        "strategy": {
+          "type": "Source",
+          "sourceStrategy": {
+            "from": {
+              "kind": "ImageStreamTag",
+              "namespace": "${NAMESPACE}",
+              "name": "wildfly:13.0"
+            }
+          }
+        },
+        "output": {
+          "to": {
+            "kind": "ImageStreamTag",
+            "name": "${NAME}-provider:latest"
+          }
+        },
+        "triggers": [
+          {
+            "type": "ImageChange"
+          },
+          {
+            "type": "ConfigChange"
+          },
+          {
+            "type": "GitHub",
+            "github": {
+              "secret": "${PROVIDER_GITHUB_WEBHOOK_SECRET}"
+            }
+          }
+        ]
       }
     },
     {
@@ -223,7 +332,7 @@
                     "value": "${RP_DATABASE_NAME}"
                   },
                   {
-                    "name": "RP_DATABASE_USER",
+                    "name": "DATABASE_USER",
                     "valueFrom": {
                       "secretKeyRef" : {
                         "name" : "${NAME}-rp",
@@ -232,7 +341,7 @@
                     }
                   },
                   {
-                    "name": "RP_DATABASE_PASSWORD",
+                    "name": "DATABASE_PASSWORD",
                     "valueFrom": {
                       "secretKeyRef" : {
                         "name" : "${NAME}-rp",
@@ -266,6 +375,122 @@
       }
     },
     {
+      "kind": "DeploymentConfig",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${NAME}-provider",
+        "annotations": {
+          "description": "Defines how to deploy the application server",
+          "template.alpha.openshift.io/wait-for-ready": "true"
+        }
+      },
+      "spec": {
+        "strategy": {
+          "type": "Recreate"
+        },
+        "triggers": [
+          {
+            "type": "ImageChange",
+            "imageChangeParams": {
+              "automatic": true,
+              "containerNames": [
+                "provider"
+              ],
+              "from": {
+                "kind": "ImageStreamTag",
+                "name": "${NAME}-provider:latest"
+              }
+            }
+          },
+          {
+            "type": "ConfigChange"
+          }
+        ],
+        "replicas": 1,
+        "selector": {
+          "name": "${NAME}-provider"
+        },
+        "template": {
+          "metadata": {
+            "name": "${NAME}-provider",
+            "labels": {
+              "name": "${NAME}-provider"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "provider",
+                "image": " ",
+                "ports": [
+                  {
+                    "containerPort": 8080
+                  }
+                ],
+                "readinessProbe": {
+                  "timeoutSeconds": 3,
+                  "initialDelaySeconds": 3,
+                  "httpGet": {
+                    "path": "/provider-api/api/v1/providers",
+                    "port": 8080
+                  }
+                },
+                "livenessProbe": {
+                  "timeoutSeconds": 3,
+                  "initialDelaySeconds": 30,
+                  "httpGet": {
+                    "path": "/provider-api/api/v1/providers",
+                    "port": 8080
+                  }
+                },
+                "env": [
+                  {
+                    "name": "DATABASE_SERVICE_NAME",
+                    "value": "${PROVIDER_DATABASE_SERVICE_NAME}"
+                  },
+                  {
+                    "name": "DATABASE_ENGINE",
+                    "value": "${DATABASE_ENGINE}"
+                  },
+                  {
+                    "name": "DATABASE_NAME",
+                    "value": "${PROVIDER_DATABASE_NAME}"
+                  },
+                  {
+                    "name": "DATABASE_USER",
+                    "valueFrom": {
+                      "secretKeyRef" : {
+                        "name" : "${NAME}-provider",
+                        "key" : "database-user"
+                      }
+                    }
+                  },
+                  {
+                    "name": "DATABASE_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef" : {
+                        "name" : "${NAME}-provider",
+                        "key" : "database-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "APP_CONFIG",
+                    "value": "${APP_CONFIG}"
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "memory": "${MEMORY_LIMIT}"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
       "kind": "Service",
       "apiVersion": "v1",
       "metadata": {
@@ -284,6 +509,28 @@
         ],
         "selector": {
           "name": "${RP_DATABASE_SERVICE_NAME}"
+        }
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${PROVIDER_DATABASE_SERVICE_NAME}",
+        "annotations": {
+          "description": "Exposes the database server"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "postgresql",
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ],
+        "selector": {
+          "name": "${PROVIDER_DATABASE_SERVICE_NAME}"
         }
       }
     },
@@ -401,6 +648,121 @@
           }
         }
       }
+    },
+    {
+      "kind": "DeploymentConfig",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${PROVIDER_DATABASE_SERVICE_NAME}",
+        "annotations": {
+          "description": "Defines how to deploy the database",
+          "template.alpha.openshift.io/wait-for-ready": "true"
+        }
+      },
+      "spec": {
+        "strategy": {
+          "type": "Recreate"
+        },
+        "triggers": [
+          {
+            "type": "ImageChange",
+            "imageChangeParams": {
+              "automatic": true,
+              "containerNames": [
+                "postgresql"
+              ],
+              "from": {
+                "kind": "ImageStreamTag",
+                "namespace": "${NAMESPACE}",
+                "name": "postgresql:${POSTGRESQL_VERSION}"
+              }
+            }
+          },
+          {
+            "type": "ConfigChange"
+          }
+        ],
+        "replicas": 1,
+        "selector": {
+          "name": "${PROVIDER_DATABASE_SERVICE_NAME}"
+        },
+        "template": {
+          "metadata": {
+            "name": "${PROVIDER_DATABASE_SERVICE_NAME}",
+            "labels": {
+              "name": "${PROVIDER_DATABASE_SERVICE_NAME}"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "data",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "postgresql",
+                "image": " ",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRESQL_USER",
+                    "valueFrom": {
+                      "secretKeyRef" : {
+                        "name" : "${NAME}-provider",
+                        "key" : "database-user"
+                      }
+                    }
+                  },
+                  {
+                    "name": "POSTGRESQL_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef" : {
+                        "name" : "${NAME}-provider",
+                        "key" : "database-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "POSTGRESQL_DATABASE",
+                    "value": "${PROVIDER_DATABASE_NAME}"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/pgsql/data"
+                  }
+                ],
+                "readinessProbe": {
+                  "timeoutSeconds": 1,
+                  "initialDelaySeconds": 5,
+                  "exec": {
+                    "command": [ "/usr/libexec/check-container" ]
+                  }
+                },
+                "livenessProbe": {
+                  "timeoutSeconds": 10,
+                  "initialDelaySeconds": 120,
+                  "exec": {
+                    "command": [ "/usr/libexec/check-container", "--live" ]
+                  }
+                },
+                "resources": {
+                  "limits": {
+                    "memory": "${MEMORY_POSTGRESQL_LIMIT}"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
     }
   ],
   "parameters": [
@@ -477,8 +839,21 @@
       "value": ""
     },
     {
+      "name": "APPLICATION_DOMAIN_PROVIDER",
+      "displayName": "Application Hostname",
+      "description": "The exposed hostname that will route to the Springboot service, if left blank a value will be defaulted.",
+      "value": ""
+    },
+    {
       "name": "GITHUB_WEBHOOK_SECRET",
-      "displayName": "GitHub Webhook Secret",
+      "displayName": "Reliant Party GitHub Webhook Secret",
+      "description": "Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
+      "generate": "expression",
+      "from": "[a-zA-Z0-9]{40}"
+    },
+    {
+      "name": "PROVIDER_GITHUB_WEBHOOK_SECRET",
+      "displayName": "Provider GitHub Webhook Secret",
       "description": "Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
       "generate": "expression",
       "from": "[a-zA-Z0-9]{40}"
