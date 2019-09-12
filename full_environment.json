@@ -17,8 +17,8 @@
   },
   "message": "The following service(s) have been created in your project: ${NAME}, ${RP_DATABASE_SERVICE_NAME}, ${PROVIDER_DATABASE_SERVICE_NAME}.\n\nFor more information about using this template, including OpenShift considerations, see https://github.com/yohanswanepoel/polyglot_template",
   "labels": {
-      "template": "polyglot-example",
-      "app": "polyglot-example"
+      "template": "polyglot-demo",
+      "app": "polyglot-demo"
   },
   "objects": [
     {
@@ -98,6 +98,7 @@
       },
       "spec": {
         "host": "${APPLICATION_DOMAIN}",
+        "path": "",
         "to": {
           "kind": "Service",
           "name": "${NAME}-rp"
@@ -112,6 +113,7 @@
       },
       "spec": {
         "host": "${APPLICATION_DOMAIN_PROVIDER}",
+        "path": "/provider-api/",
         "to": {
           "kind": "Service",
           "name": "${NAME}-provider"
@@ -431,7 +433,7 @@
                   "timeoutSeconds": 3,
                   "initialDelaySeconds": 3,
                   "httpGet": {
-                    "path": "/provider-api/api/v1/providers",
+                    "path": "/provider-api/api/v1/health",
                     "port": 8080
                   }
                 },
@@ -439,7 +441,7 @@
                   "timeoutSeconds": 3,
                   "initialDelaySeconds": 30,
                   "httpGet": {
-                    "path": "/provider-api/api/v1/providers",
+                    "path": "/provider-api/api/v1/health",
                     "port": 8080
                   }
                 },
@@ -771,7 +773,7 @@
       "displayName": "Name",
       "description": "The name assigned to all of the frontend objects defined in this template.",
       "required": true,
-      "value": "polyglot-example"
+      "value": "polyglot-demo"
     },
     {
       "name": "NAMESPACE",
@@ -799,14 +801,14 @@
       "displayName": "Memory Limit",
       "required": true,
       "description": "Maximum amount of memory the Django container can use.",
-      "value": "512Mi"
+      "value": "256Mi"
     },
     {
       "name": "MEMORY_POSTGRESQL_LIMIT",
       "displayName": "Memory Limit (PostgreSQL)",
       "required": true,
       "description": "Maximum amount of memory the PostgreSQL container can use.",
-      "value": "512Mi"
+      "value": "256Mi"
     },
     {
       "name": "PYTHON_SOURCE_REPOSITORY_URL",
