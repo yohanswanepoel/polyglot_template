@@ -25,6 +25,18 @@
       "kind": "Secret",
       "apiVersion": "v1",
       "metadata": {
+        "name": "${NAME}-ui"
+      },
+      "stringData" : {
+        "database-user" : "${UI_DATABASE_USER}",
+        "database-password" : "${UI_DATABASE_PASSWORD}",
+        "django-secret-key" : "${UI_DJANGO_SECRET_KEY}"
+      }
+    },
+    {
+      "kind": "Secret",
+      "apiVersion": "v1",
+      "metadata": {
         "name": "${NAME}-rp"
       },
       "stringData" : {
@@ -42,6 +54,29 @@
       "stringData" : {
         "database-user" : "${PROVIDER_DATABASE_USER}",
         "database-password" : "${PROVIDER_DATABASE_PASSWORD}"
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${NAME}-ui",
+        "annotations": {
+          "description": "Exposes and load balances the application pods",
+          "service.alpha.openshift.io/dependencies": "[{\"name\": \"${UI_DATABASE_SERVICE_NAME}\", \"kind\": \"Service\"}]"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "web",
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "name": "${NAME}-ui"
+        }
       }
     },
     {
@@ -94,6 +129,21 @@
       "kind": "Route",
       "apiVersion": "v1",
       "metadata": {
+        "name": "${NAME}-ui"
+      },
+      "spec": {
+        "host": "${APPLICATION_DOMAIN}",
+        "path": "",
+        "to": {
+          "kind": "Service",
+          "name": "${NAME}-ui"
+        }
+      }
+    },
+    {
+      "kind": "Route",
+      "apiVersion": "v1",
+      "metadata": {
         "name": "${NAME}-rp"
       },
       "spec": {
@@ -124,6 +174,16 @@
       "kind": "ImageStream",
       "apiVersion": "v1",
       "metadata": {
+        "name": "${NAME}-ui",
+        "annotations": {
+          "description": "Keeps track of changes in the application image"
+        }
+      }
+    },
+    {
+      "kind": "ImageStream",
+      "apiVersion": "v1",
+      "metadata": {
         "name": "${NAME}-rp",
         "annotations": {
           "description": "Keeps track of changes in the application image"
@@ -137,6 +197,66 @@
         "name": "${NAME}-provider",
         "annotations": {
           "description": "Keeps track of changes in the application image"
+        }
+      }
+    },
+    {
+      "kind": "BuildConfig",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${NAME}-ui",
+        "annotations": {
+          "description": "Defines how to build the application",
+          "template.alpha.openshift.io/wait-for-ready": "true"
+        }
+      },
+      "spec": {
+        "source": {
+          "type": "Git",
+          "git": {
+            "uri": "${UI_PYTHON_SOURCE_REPOSITORY_URL}",
+            "ref": "${UI_SOURCE_REPOSITORY_REF}"
+          },
+          "contextDir": "${UI_CONTEXT_DIR}"
+        },
+        "strategy": {
+          "type": "Source",
+          "sourceStrategy": {
+            "from": {
+              "kind": "ImageStreamTag",
+              "namespace": "${NAMESPACE}",
+              "name": "python:${PYTHON_VERSION}"
+            },
+            "env": [
+              {
+                  "name": "PIP_INDEX_URL",
+                  "value": "${PIP_INDEX_URL}"
+              }
+            ]
+          }
+        },
+        "output": {
+          "to": {
+            "kind": "ImageStreamTag",
+            "name": "${NAME}-ui:latest"
+          }
+        },
+        "triggers": [
+          {
+            "type": "ImageChange"
+          },
+          {
+            "type": "ConfigChange"
+          },
+          {
+            "type": "GitHub",
+            "github": {
+              "secret": "${UI_GITHUB_WEBHOOK_SECRET}"
+            }
+          }
+        ],
+        "postCommit": {
+           "script": "./manage.py test"
         }
       }
     },
@@ -249,6 +369,131 @@
             }
           }
         ]
+      }
+    },
+    {
+      "kind": "DeploymentConfig",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${NAME}-ui",
+        "annotations": {
+          "description": "Defines how to deploy the application server",
+          "template.alpha.openshift.io/wait-for-ready": "true"
+        }
+      },
+      "spec": {
+        "strategy": {
+          "type": "Recreate"
+        },
+        "triggers": [
+          {
+            "type": "ImageChange",
+            "imageChangeParams": {
+              "automatic": true,
+              "containerNames": [
+                "management-ui"
+              ],
+              "from": {
+                "kind": "ImageStreamTag",
+                "name": "${NAME}-ui:latest"
+              }
+            }
+          },
+          {
+            "type": "ConfigChange"
+          }
+        ],
+        "replicas": 1,
+        "selector": {
+          "name": "${NAME}-ui"
+        },
+        "template": {
+          "metadata": {
+            "name": "${NAME}-ui",
+            "labels": {
+              "name": "${NAME}-ui"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "management-ui",
+                "image": " ",
+                "ports": [
+                  {
+                    "containerPort": 8080
+                  }
+                ],
+                "readinessProbe": {
+                  "timeoutSeconds": 3,
+                  "initialDelaySeconds": 3,
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 8080
+                  }
+                },
+                "livenessProbe": {
+                  "timeoutSeconds": 3,
+                  "initialDelaySeconds": 30,
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 8080
+                  }
+                },
+                "env": [
+                  {
+                    "name": "DATABASE_SERVICE_NAME",
+                    "value": "${UI_DATABASE_SERVICE_NAME}"
+                  },
+                  {
+                    "name": "DATABASE_ENGINE",
+                    "value": "${DATABASE_ENGINE}"
+                  },
+                  {
+                    "name": "DATABASE_NAME",
+                    "value": "${UI_DATABASE_NAME}"
+                  },
+                  {
+                    "name": "DATABASE_USER",
+                    "valueFrom": {
+                      "secretKeyRef" : {
+                        "name" : "${NAME}-ui",
+                        "key" : "database-user"
+                      }
+                    }
+                  },
+                  {
+                    "name": "DATABASE_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef" : {
+                        "name" : "${NAME}-ui",
+                        "key" : "database-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "APP_CONFIG",
+                    "value": "${APP_CONFIG}"
+                  },
+                  {
+                    "name": "DJANGO_SECRET_KEY",
+                    "valueFrom": {
+                      "secretKeyRef" : {
+                        "name" : "${NAME}-ui",
+                        "key" : "django-secret-key"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "memory": "${MEMORY_LIMIT}"
+                  }
+                }
+              }
+            ]
+          }
+        }
       }
     },
     {
@@ -496,6 +741,28 @@
       "kind": "Service",
       "apiVersion": "v1",
       "metadata": {
+        "name": "${UI_DATABASE_SERVICE_NAME}",
+        "annotations": {
+          "description": "Exposes the database server for UI component"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "postgresql",
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ],
+        "selector": {
+          "name": "${UI_DATABASE_SERVICE_NAME}"
+        }
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
         "name": "${RP_DATABASE_SERVICE_NAME}",
         "annotations": {
           "description": "Exposes the database server"
@@ -533,6 +800,121 @@
         ],
         "selector": {
           "name": "${PROVIDER_DATABASE_SERVICE_NAME}"
+        }
+      }
+    },
+    {
+      "kind": "DeploymentConfig",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${UI_DATABASE_SERVICE_NAME}",
+        "annotations": {
+          "description": "Defines how to deploy the database",
+          "template.alpha.openshift.io/wait-for-ready": "true"
+        }
+      },
+      "spec": {
+        "strategy": {
+          "type": "Recreate"
+        },
+        "triggers": [
+          {
+            "type": "ImageChange",
+            "imageChangeParams": {
+              "automatic": true,
+              "containerNames": [
+                "postgresql"
+              ],
+              "from": {
+                "kind": "ImageStreamTag",
+                "namespace": "${NAMESPACE}",
+                "name": "postgresql:${POSTGRESQL_VERSION}"
+              }
+            }
+          },
+          {
+            "type": "ConfigChange"
+          }
+        ],
+        "replicas": 1,
+        "selector": {
+          "name": "${UI_DATABASE_SERVICE_NAME}"
+        },
+        "template": {
+          "metadata": {
+            "name": "${UI_DATABASE_SERVICE_NAME}",
+            "labels": {
+              "name": "${UI_DATABASE_SERVICE_NAME}"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "data",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "postgresql",
+                "image": " ",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRESQL_USER",
+                    "valueFrom": {
+                      "secretKeyRef" : {
+                        "name" : "${NAME}-ui",
+                        "key" : "database-user"
+                      }
+                    }
+                  },
+                  {
+                    "name": "POSTGRESQL_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef" : {
+                        "name" : "${NAME}-ui",
+                        "key" : "database-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "POSTGRESQL_DATABASE",
+                    "value": "${UI_DATABASE_NAME}"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/pgsql/data"
+                  }
+                ],
+                "readinessProbe": {
+                  "timeoutSeconds": 1,
+                  "initialDelaySeconds": 5,
+                  "exec": {
+                    "command": [ "/usr/libexec/check-container" ]
+                  }
+                },
+                "livenessProbe": {
+                  "timeoutSeconds": 10,
+                  "initialDelaySeconds": 120,
+                  "exec": {
+                    "command": [ "/usr/libexec/check-container", "--live" ]
+                  }
+                },
+                "resources": {
+                  "limits": {
+                    "memory": "${MEMORY_POSTGRESQL_LIMIT}"
+                  }
+                }
+              }
+            ]
+          }
         }
       }
     },
@@ -785,14 +1167,14 @@
     {
       "name": "PYTHON_VERSION",
       "displayName": "Version of Python Image",
-      "description": "Version of Python image to be used (3.6 or latest).",
+      "description": "The template assumes a single version of Python image to be used (3.6 or latest).",
       "value": "3.6",
       "required": true
     },
     {
       "name": "POSTGRESQL_VERSION",
       "displayName": "Version of PostgreSQL Image",
-      "description": "Version of PostgreSQL image to be used (10 or latest).",
+      "description": "The template assumes a single version of PostgreSQL image to be used (10 or latest).",
       "value": "10",
       "required": true
     },
@@ -800,7 +1182,7 @@
       "name": "MEMORY_LIMIT",
       "displayName": "Memory Limit",
       "required": true,
-      "description": "Maximum amount of memory the Django container can use.",
+      "description": "Maximum amount of memory the Django container(s) can use.",
       "value": "256Mi"
     },
     {
@@ -818,11 +1200,25 @@
       "value": "https://github.com/yohanswanepoel/reliantparty_api.git"
     },
     {
+      "name": "GITHUB_WEBHOOK_SECRET",
+      "displayName": "Reliant Party GitHub Webhook Secret",
+      "description": "Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
+      "generate": "expression",
+      "from": "[a-zA-Z0-9]{40}"
+    },
+    {
       "name": "SPRINGBOOT_SOURCE_REPOSITORY_URL",
       "displayName": "Provider API (springboot) Git Repository URL",
       "required": true,
       "description": "The URL of the repository with your application source code. Template will always pull main",
       "value": "https://github.com/yohanswanepoel/springboot_provider.git"
+    },
+    {
+      "name": "PROVIDER_GITHUB_WEBHOOK_SECRET",
+      "displayName": "Provider GitHub Webhook Secret",
+      "description": "Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
+      "generate": "expression",
+      "from": "[a-zA-Z0-9]{40}"
     },
     {
       "name": "SOURCE_REPOSITORY_REF",
@@ -833,6 +1229,30 @@
       "name": "CONTEXT_DIR",
       "displayName": "Context Directory",
       "description": "Set this to the relative path to your project if it is not in the root of your repository."
+    },
+    {
+      "name": "UI_PYTHON_SOURCE_REPOSITORY_URL",
+      "displayName": "Management UI Git Repository URL",
+      "required": true,
+      "description": "The URL of the repository with your application source code. Template will always pull main",
+      "value": "https://github.com/yohanswanepoel/reliantparty_api.git"
+    },
+    {
+      "name": "UI_SOURCE_REPOSITORY_REF",
+      "displayName": "Git Reference Management UI",
+      "description": "Set this to a branch name, tag or other ref of your repository if you are not using the default branch."
+    },
+    {
+      "name": "UI_CONTEXT_DIR",
+      "displayName": "Context Directory Management UI",
+      "description": "Set this to the relative path to your project if it is not in the root of your repository."
+    },
+    {
+      "name": "UI_GITHUB_WEBHOOK_SECRET",
+      "displayName": "Management UI GitHub Webhook Secret",
+      "description": "Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
+      "generate": "expression",
+      "from": "[a-zA-Z0-9]{40}"
     },
     {
       "name": "APPLICATION_DOMAIN",
@@ -847,18 +1267,35 @@
       "value": ""
     },
     {
-      "name": "GITHUB_WEBHOOK_SECRET",
-      "displayName": "Reliant Party GitHub Webhook Secret",
-      "description": "Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
-      "generate": "expression",
-      "from": "[a-zA-Z0-9]{40}"
+      "name": "DATABASE_ENGINE",
+      "displayName": "Database Engine",
+      "required": true,
+      "description": "Database engine: postgresql, mysql or sqlite (default).",
+      "value": "postgresql"
     },
     {
-      "name": "PROVIDER_GITHUB_WEBHOOK_SECRET",
-      "displayName": "Provider GitHub Webhook Secret",
-      "description": "Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
+      "name": "UI_DATABASE_SERVICE_NAME",
+      "displayName": "Database Service Name Management UI",
+      "required": true,
+      "value": "reliantpartydb"
+    },
+    {
+      "name": "UI_DATABASE_NAME",
+      "displayName": "Database Name Management UI",
+      "required": true,
+      "value": "default"
+    },
+    {
+      "name": "UI_DATABASE_USER",
+      "displayName": "Database Username Management UI",
+      "required": true,
+      "value": "django"
+    },
+    {
+      "name": "UI_DATABASE_PASSWORD",
+      "displayName": "Database User Password Management UI",
       "generate": "expression",
-      "from": "[a-zA-Z0-9]{40}"
+      "from": "[a-zA-Z0-9]{16}"
     },
     {
       "name": "RP_DATABASE_SERVICE_NAME",
@@ -867,51 +1304,44 @@
       "value": "reliantpartydb"
     },
     {
-      "name": "PROVIDER_DATABASE_SERVICE_NAME",
-      "displayName": "Database Service Name",
-      "required": true,
-      "value": "providerdb"
-    },
-    {
-      "name": "DATABASE_ENGINE",
-      "displayName": "Database Engine",
-      "required": true,
-      "description": "Database engine: postgresql, mysql or sqlite (default).",
-      "value": "postgresql"
-    },
-    {
       "name": "RP_DATABASE_NAME",
-      "displayName": "Database Name",
+      "displayName": "Database Name Reliant Party API",
       "required": true,
       "value": "default"
     },
     {
       "name": "RP_DATABASE_USER",
-      "displayName": "Database Username",
+      "displayName": "Database Username Reliant Party API",
       "required": true,
       "value": "django"
     },
     {
       "name": "RP_DATABASE_PASSWORD",
-      "displayName": "Database User Password",
+      "displayName": "Database User Password Reliant Party API",
       "generate": "expression",
       "from": "[a-zA-Z0-9]{16}"
     },
     {
+      "name": "PROVIDER_DATABASE_SERVICE_NAME",
+      "displayName": "Database Service Name Provider API",
+      "required": true,
+      "value": "providerdb"
+    },
+    {
       "name": "PROVIDER_DATABASE_NAME",
-      "displayName": "Database Name",
+      "displayName": "Database Name Provider API",
       "required": true,
       "value": "default"
     },
     {
       "name": "PROVIDER_DATABASE_USER",
-      "displayName": "Database Username",
+      "displayName": "Database Username Provider API",
       "required": true,
       "value": "provider_user"
     },
     {
       "name": "PROVIDER_DATABASE_PASSWORD",
-      "displayName": "Database User Password",
+      "displayName": "Database User Password Provider API",
       "generate": "expression",
       "from": "[a-zA-Z0-9]{16}"
     },
@@ -922,6 +1352,13 @@
     },
     {
       "name": "DJANGO_SECRET_KEY",
+      "displayName": "Django Secret Key",
+      "description": "Set this to a long random string.",
+      "generate": "expression",
+      "from": "[\\w]{50}"
+    },
+    {
+      "name": "UI_DJANGO_SECRET_KEY",
       "displayName": "Django Secret Key",
       "description": "Set this to a long random string.",
       "generate": "expression",
