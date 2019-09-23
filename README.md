@@ -1,4 +1,4 @@
-# polyglot_template
+# Polyglot Demo OpenShift Template
 This is a polyglot application to demonstrate working OpenShift environment. It uses different techniques to demonstrate use cases such as:
 * Onboarding: Single OpenShift Catalogue item that provisions complete environment
 * How different technologies such as Java and Python can work together
