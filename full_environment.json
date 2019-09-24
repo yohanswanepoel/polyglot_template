@@ -476,6 +476,14 @@
                     "value": "${APP_CONFIG}"
                   },
                   {
+                    "name": "URL_RELIANTPARTIES",
+                    "value": "${NAME}-rp"
+                  },
+                  {
+                    "name": "URL_PROVIDER",
+                    "value": "${NAME}-provider"
+                  },
+                  {
                     "name": "DJANGO_SECRET_KEY",
                     "valueFrom": {
                       "secretKeyRef" : {
