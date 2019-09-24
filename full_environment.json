@@ -736,7 +736,7 @@
                 ],
                 "resources": {
                   "limits": {
-                    "memory": "${MEMORY_LIMIT}"
+                    "memory": "${PROVIDER_MEMORY_LIMIT}"
                   }
                 }
               }
@@ -1188,10 +1188,17 @@
     },
     {
       "name": "MEMORY_LIMIT",
-      "displayName": "Memory Limit",
+      "displayName": "Memory Limit Python Components",
       "required": true,
       "description": "Maximum amount of memory the Django container(s) can use.",
-      "value": "256Mi"
+      "value": "196Mi"
+    },
+    {
+      "name": "PROVIDER_MEMORY_LIMIT",
+      "displayName": "Memory Limit for Provider API (Java)",
+      "required": true,
+      "description": "Maximum amount of memory the Django container(s) can use.",
+      "value": "384Mi"
     },
     {
       "name": "MEMORY_POSTGRESQL_LIMIT",

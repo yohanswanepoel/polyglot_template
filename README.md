@@ -32,15 +32,25 @@ oc create -f full_environment.json -n <project>
 ```bash
 oc process --parameters -f full_environment.json
 ```
-* Deploy template
+* Describe the template in CLI
 ```bash
-oc process --parameters -n <project> polyglot-sample
+oc describe template polyglot-sample
+```
+* Deploy using template
+```bash
+oc new-app polyglot-sample
 ```
 For more information see the OpenShift documentation
 
 ## Clean up environment
 ```bash
 oc project [your project]
+oc delete template polyglot-sample
 oc delete --all deploymentconfig,imagestream,buildconfig,route,service,secret
 ```
+
+
+## Further reading
+
+![Link to Tempalte Creation](https://blog.openshift.com/part-2-creating-a-template-a-technical-walkthrough/)
 
