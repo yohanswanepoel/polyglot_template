@@ -42,7 +42,7 @@
       "stringData" : {
         "database-user" : "${RP_DATABASE_USER}",
         "database-password" : "${RP_DATABASE_PASSWORD}",
-        "django-secret-key" : "${DJANGO_SECRET_KEY}"
+        "django-secret-key" : "${RP_DJANGO_SECRET_KEY}"
       }
     },
     {
@@ -129,21 +129,6 @@
       "kind": "Route",
       "apiVersion": "v1",
       "metadata": {
-        "name": "${NAME}-ui"
-      },
-      "spec": {
-        "host": "${APPLICATION_DOMAIN}",
-        "path": "",
-        "to": {
-          "kind": "Service",
-          "name": "${NAME}-ui"
-        }
-      }
-    },
-    {
-      "kind": "Route",
-      "apiVersion": "v1",
-      "metadata": {
         "name": "${NAME}-rp"
       },
       "spec": {
@@ -167,6 +152,21 @@
         "to": {
           "kind": "Service",
           "name": "${NAME}-provider"
+        }
+      }
+    },
+    {
+      "kind": "Route",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${NAME}-ui"
+      },
+      "spec": {
+        "host": "${APPLICATION_DOMAIN}",
+        "path": "",
+        "to": {
+          "kind": "Service",
+          "name": "${NAME}-ui"
         }
       }
     },
@@ -1198,7 +1198,7 @@
       "displayName": "Memory Limit for Provider API (Java)",
       "required": true,
       "description": "Maximum amount of memory the Django container(s) can use.",
-      "value": "384Mi"
+      "value": "512Mi"
     },
     {
       "name": "MEMORY_POSTGRESQL_LIMIT",
@@ -1250,7 +1250,7 @@
       "displayName": "Management UI Git Repository URL",
       "required": true,
       "description": "The URL of the repository with your application source code. Template will always pull main",
-      "value": "https://github.com/yohanswanepoel/reliantparty_api.git"
+      "value": "https://github.com/yohanswanepoel/management-ui.git"
     },
     {
       "name": "UI_SOURCE_REPOSITORY_REF",
@@ -1292,7 +1292,7 @@
       "name": "UI_DATABASE_SERVICE_NAME",
       "displayName": "Database Service Name Management UI",
       "required": true,
-      "value": "reliantpartydb"
+      "value": "managementuidb"
     },
     {
       "name": "UI_DATABASE_NAME",
@@ -1366,15 +1366,15 @@
       "description": "Relative path to Gunicorn configuration file (optional)."
     },
     {
-      "name": "DJANGO_SECRET_KEY",
-      "displayName": "Django Secret Key",
+      "name": "RP_DJANGO_SECRET_KEY",
+      "displayName": "Django Secret Key for Reliant Party API",
       "description": "Set this to a long random string.",
       "generate": "expression",
       "from": "[\\w]{50}"
     },
     {
       "name": "UI_DJANGO_SECRET_KEY",
-      "displayName": "Django Secret Key",
+      "displayName": "Django Secret Key UI API",
       "description": "Set this to a long random string.",
       "generate": "expression",
       "from": "[\\w]{50}"
