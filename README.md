@@ -42,6 +42,11 @@ oc new-app polyglot-sample
 ```
 For more information see the OpenShift documentation
 
+## Useful things to know if disconnected
+* PIP_INDEX_URL: sets the URL of a local python repo
+* Java component needs that set in the pom.xml file
+* Image streams needs to be imported
+
 ## Clean up environment
 ```bash
 oc project [your project]
