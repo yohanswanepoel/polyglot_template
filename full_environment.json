@@ -345,7 +345,8 @@
             "from": {
               "kind": "ImageStreamTag",
               "namespace": "${NAMESPACE}",
-              "name": "wildfly:13.0"
+              //"name": "wildfly:13.0",
+              "name":"jboss-eap72-openshift:1.2"
             }
           }
         },
