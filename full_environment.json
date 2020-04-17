@@ -345,7 +345,7 @@
             "from": {
               "kind": "ImageStreamTag",
               "namespace": "${NAMESPACE}",
-              "name":"jboss-eap72-openshift:1.2"
+              "name":"jboss-eap72-openshift:latest"
             }
           }
         },
