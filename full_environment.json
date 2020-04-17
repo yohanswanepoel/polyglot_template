@@ -379,8 +379,7 @@
         "annotations": {
           "description": "Defines how to deploy the application server",
           "template.alpha.openshift.io/wait-for-ready": "true",
-          "app.openshift.io/connects-to": "${NAME}-rp",
-          "app.openshift.io/connects-to": "${NAME}-provider"
+          "app.openshift.io/connects-to": "${NAME}-rp,${NAME}-provider,${UI_DATABASE_SERVICE_NAME}"
         },
         "labels":{
             "app.kubernetes.io/part-of": "${NAME}-ui",
@@ -518,7 +517,8 @@
         "name": "${NAME}-rp",
         "annotations": {
           "description": "Defines how to deploy the application server",
-          "template.alpha.openshift.io/wait-for-ready": "true"
+          "template.alpha.openshift.io/wait-for-ready": "true",
+          "app.openshift.io/connects-to": "${RP_DATABASE_SERVICE_NAME}"
         },
         "labels":{
             "app.kubernetes.io/part-of": "${NAME}-rp",
@@ -648,7 +648,8 @@
         "name": "${NAME}-provider",
         "annotations": {
           "description": "Defines how to deploy the application server",
-          "template.alpha.openshift.io/wait-for-ready": "true"
+          "template.alpha.openshift.io/wait-for-ready": "true",
+          "app.openshift.io/connects-to": "${PROVIDER_DATABASE_SERVICE_NAME}"
         },
         "labels":{
             "app.kubernetes.io/part-of": "${NAME}-provider",
@@ -835,8 +836,7 @@
         "name": "${UI_DATABASE_SERVICE_NAME}",
         "annotations": {
           "description": "Defines how to deploy the database",
-          "template.alpha.openshift.io/wait-for-ready": "true",
-          "app.openshift.io/connects-to": "${NAME}-ui"
+          "template.alpha.openshift.io/wait-for-ready": "true"
         },
         "labels":{
             "app.kubernetes.io/part-of": "${NAME}-ui",
@@ -956,8 +956,7 @@
         "name": "${RP_DATABASE_SERVICE_NAME}",
         "annotations": {
           "description": "Defines how to deploy the database",
-          "template.alpha.openshift.io/wait-for-ready": "true",
-          "app.openshift.io/connects-to": "${NAME}-rp"
+          "template.alpha.openshift.io/wait-for-ready": "true"
         },
         "labels":{
             "app.kubernetes.io/part-of": "${NAME}-rp",
@@ -1077,8 +1076,7 @@
         "name": "${PROVIDER_DATABASE_SERVICE_NAME}",
         "annotations": {
           "description": "Defines how to deploy the database",
-          "template.alpha.openshift.io/wait-for-ready": "true",
-          "app.openshift.io/connects-to": "${NAME}-provider"
+          "template.alpha.openshift.io/wait-for-ready": "true"
         },
         "labels":{
             "app.kubernetes.io/part-of": "${NAME}-provider",
