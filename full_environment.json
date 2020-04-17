@@ -378,7 +378,14 @@
         "name": "${NAME}-ui",
         "annotations": {
           "description": "Defines how to deploy the application server",
-          "template.alpha.openshift.io/wait-for-ready": "true"
+          "template.alpha.openshift.io/wait-for-ready": "true",
+          "app.openshift.io/connects-to": "${NAME}-rp",
+          "app.openshift.io/connects-to": "${NAME}-provider"
+        },
+        "labels":{
+            "app.kubernetes.io/part-of": "${NAME}-ui",
+            "app.openshift.io/component": "frontend",
+            "app.openshift.io/runtime": "python"
         }
       },
       "spec": {
@@ -512,6 +519,11 @@
         "annotations": {
           "description": "Defines how to deploy the application server",
           "template.alpha.openshift.io/wait-for-ready": "true"
+        },
+        "labels":{
+            "app.kubernetes.io/part-of": "${NAME}-rp",
+            "app.openshift.io/component": "backend",
+            "app.openshift.io/runtime": "python"
         }
       },
       "spec": {
@@ -637,6 +649,11 @@
         "annotations": {
           "description": "Defines how to deploy the application server",
           "template.alpha.openshift.io/wait-for-ready": "true"
+        },
+        "labels":{
+            "app.kubernetes.io/part-of": "${NAME}-provider",
+            "app.openshift.io/component": "backend",
+            "app.openshift.io/runtime": "java"
         }
       },
       "spec": {
@@ -818,7 +835,13 @@
         "name": "${UI_DATABASE_SERVICE_NAME}",
         "annotations": {
           "description": "Defines how to deploy the database",
-          "template.alpha.openshift.io/wait-for-ready": "true"
+          "template.alpha.openshift.io/wait-for-ready": "true",
+          "app.openshift.io/connects-to": "${NAME}-ui"
+        },
+        "labels":{
+            "app.kubernetes.io/part-of": "${NAME}-ui",
+            "app.openshift.io/component": "database",
+            "app.openshift.io/runtime": "postgresql"
         }
       },
       "spec": {
@@ -933,7 +956,13 @@
         "name": "${RP_DATABASE_SERVICE_NAME}",
         "annotations": {
           "description": "Defines how to deploy the database",
-          "template.alpha.openshift.io/wait-for-ready": "true"
+          "template.alpha.openshift.io/wait-for-ready": "true",
+          "app.openshift.io/connects-to": "${NAME}-rp"
+        },
+        "labels":{
+            "app.kubernetes.io/part-of": "${NAME}-rp",
+            "app.openshift.io/component": "database",
+            "app.openshift.io/runtime": "postgresql"
         }
       },
       "spec": {
@@ -1048,7 +1077,13 @@
         "name": "${PROVIDER_DATABASE_SERVICE_NAME}",
         "annotations": {
           "description": "Defines how to deploy the database",
-          "template.alpha.openshift.io/wait-for-ready": "true"
+          "template.alpha.openshift.io/wait-for-ready": "true",
+          "app.openshift.io/connects-to": "${NAME}-provider"
+        },
+        "labels":{
+            "app.kubernetes.io/part-of": "${NAME}-provider",
+            "app.openshift.io/component": "database",
+            "app.openshift.io/runtime": "postgresql"
         }
       },
       "spec": {
